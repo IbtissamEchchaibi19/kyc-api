@@ -189,3 +189,12 @@ def get_all_clients():
     clients_collection = mongo.db.clients
     clients = clients_collection.find()
     return [{"company": client["company"], "email": client["email"]} for client in clients]
+
+def find_user_by_username(username):
+    users_collection = mongo.db.users
+    return users_collection.find_one({"username": username})
+
+def get_all_client_emails():
+    clients_collection = mongo.db.clients
+    clients = clients_collection.find({}, {"email": 1, "_id": 0})
+    return [client["email"] for client in clients]
