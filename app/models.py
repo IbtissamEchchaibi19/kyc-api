@@ -139,6 +139,47 @@ def update_user_images(username, image_type, file):
         else:
             return {"error": "Failed to insert new image collection"}
 
+def create_verification_status(username, status):
+    verification_status_collection = mongo.db.verification_statuses
+    result = verification_status_collection.update_one(
+        {"username": username},
+        {"$set": {"status": status}},
+        upsert=True
+    )
+    if result.modified_count > 0 or result.upserted_id:
+        return {"success": "Verification status updated successfully"}
+    else:
+        return {"error": "Failed to update verification status"}
+    
+def create_verified_record(username, match_status):
+    verified_collection = mongo.db.verified
+
+    # Only add user to collection if match_status is "Match"
+    if match_status == "Match":
+        result = verified_collection.update_one(
+            {"username": username},
+            {"$set": {"username": username, "status": match_status}},
+            upsert=True
+        )
+        if result.modified_count > 0 or result.upserted_id:
+            return {"success": "User added to verified collection successfully"}
+        else:
+            return {"error": "Failed to add user to verified collection"}
+    else:
+        # No action needed for "No Match"
+        return {"success": "No user added to verified collection, status did not match"}
+
+def add_user_to_verified(username):
+    verified_collection = mongo.db.verified
+    result = verified_collection.update_one(
+        {"username": username},
+        {"$set": {"username": username}},
+        upsert=True
+    )
+    if result.modified_count > 0 or result.upserted_id:
+        return {"success": "User added to verified collection successfully"}
+    else:
+        return {"error": "Failed to add user to verified collection"}
 
 def get_user_image_collection(username):
     return mongo.db.images.find_one({"username": username})

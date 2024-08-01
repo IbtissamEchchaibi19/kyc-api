@@ -4,8 +4,8 @@ from functools import wraps
 import jwt
 from bson.objectid import ObjectId
 import base64
-from .models import mongo  ,delete_user_images , get_image
-import cv2
+from .models import mongo  ,delete_user_images , get_image,create_verification_status , create_verified_record
+import cv2 
 import dlib
 import torch
 import numpy as np 
@@ -231,6 +231,12 @@ def card_faces(username):
     similarity_score = float(similarity[0][0])
     match_status = "Match" if similarity_score > 0.8 else "No Match"
 
+    # Update verification status in the database using the model function
+    create_verification_status(username, match_status)
+
+    # Create a verified record only if match_status is "Match"
+    create_verified_record(username, match_status)
+
     # Encode images to base64 for response
     _, screenshot_encoded = cv2.imencode('.jpg', screenshot_img)
     _, selfie_encoded = cv2.imencode('.jpg', selfie_img)
@@ -243,7 +249,6 @@ def card_faces(username):
         'screenshot_face_image': screenshot_face_b64,
         'selfie_face_image': selfie_face_b64
     })
-
 
 @bp.route('/check_faces_in_image/<username>/<filename>', methods=['GET'])
 @token_required
