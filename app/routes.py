@@ -4,7 +4,7 @@ from functools import wraps
 import jwt
 from bson.objectid import ObjectId
 import base64
-from .models import mongo  ,delete_user_images
+from .models import mongo  ,delete_user_images , get_image
 import cv2
 import dlib
 import torch
@@ -185,10 +185,6 @@ def match_faces(username):
         'screenshot_face_image': screenshot_face_b64,
         'selfie_face_image': selfie_face_b64
     })
-    
-    
-
-
 @bp.route('/card_faces/<username>', methods=['POST'])
 @token_required
 def card_faces(username):
@@ -305,3 +301,18 @@ def logout():
     else:
         # If no images were found or deleted, just log the user out
         return jsonify({'message': 'Logged out successfully, but no images found for deletion.'}), 200
+
+@bp.route('/get-screenshot/<username>', methods=['GET'])
+@token_required
+def get_screenshot(username):
+    return get_image(username, "screenshot")
+
+@bp.route('/get-selfie/<username>', methods=['GET'])
+@token_required
+def get_selfie(username):
+    return get_image(username, "selfie")
+
+@bp.route('/get-card/<username>', methods=['GET'])
+@token_required
+def get_card(username):
+    return get_image(username, "card")
