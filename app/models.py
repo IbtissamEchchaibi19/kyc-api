@@ -183,3 +183,9 @@ def create_client(company, email):
 def client_exists(email):
     clients_collection = mongo.db.clients
     return clients_collection.find_one({"username": email}) is not None
+
+
+def get_all_clients():
+    clients_collection = mongo.db.clients
+    clients = clients_collection.find()
+    return [{"company": client["company"], "email": client["email"]} for client in clients]
