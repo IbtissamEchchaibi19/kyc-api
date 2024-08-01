@@ -1,5 +1,7 @@
 from . import mongo, bcrypt
 from bson import ObjectId
+from flask import send_file ,jsonify
+import io 
 
 def create_user(username, password):
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -140,6 +142,23 @@ def update_user_images(username, image_type, file):
 
 def get_user_image_collection(username):
     return mongo.db.images.find_one({"username": username})
+
+def get_image(username, image_type):
+    image_collection = mongo.db.images
+    user_images = image_collection.find_one({"username": username})
+    
+    if user_images and "images" in user_images:
+        for img in user_images["images"]:
+            if img["type"] == image_type:
+                return send_file(
+                    io.BytesIO(img["data"]),
+                    mimetype=img["content_type"],
+                    as_attachment=True,
+                    download_name=img["filename"]  # Use 'download_name' instead of 'attachment_filename'
+                )
+    return jsonify({"error": "Image not found"}), 404
+
+
 
 def delete_user_images(username):
     result = mongo.db.images.delete_many({"username": username})
