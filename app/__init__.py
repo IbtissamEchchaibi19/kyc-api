@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_pymongo import PyMongo
 from flask_bcrypt import Bcrypt
+from flask_cors import CORS  # Import CORS
 import os
 from dotenv import load_dotenv
 
@@ -9,7 +10,7 @@ bcrypt = Bcrypt()
 
 def create_app():
     app = Flask(__name__)
-    
+    CORS(app)
     # Load environment variables from .env file
     load_dotenv()
     
@@ -18,6 +19,7 @@ def create_app():
     
     mongo.init_app(app)
     bcrypt.init_app(app)
+
     
     from .routes import bp as routes_bp
     app.register_blueprint(routes_bp)

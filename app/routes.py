@@ -51,6 +51,19 @@ def login():
     response, status = handle_login(data)
     return jsonify(response), status
 
+@bp.route('/dashboard', methods=['GET'])
+@token_required
+def get_user_data():
+
+    username = request.username
+
+    user_data = {
+        'username': username
+    }
+
+    return jsonify({'user_data': user_data}), 200
+
+
 @bp.route('/upload_image/<username>', methods=['POST'])
 @token_required
 def upload_image(username):
@@ -64,53 +77,43 @@ def upload_image(username):
     response, status = handle_upload_image(username, file)
     return jsonify(response), status
 
-@bp.route('/get_images/<username>', methods=['GET'])
-@token_required
-def get_images(username):
-    response, status = handle_get_images(username)
-    return jsonify(response), status
-
-@bp.route('/get_image/<username>/<file_id>', methods=['GET'])
-@token_required
-def get_image(username, file_id):
-    image_collection = mongo.db.images
-    user_images = image_collection.find_one({"username": username})
-    
-    if user_images and "images" in user_images:
-        for img in user_images["images"]:
-            if img.get("_id") == file_id:
-                response = jsonify({"filename": img['filename']})
-                response.headers['Content-Type'] = img['content_type']
-                response.headers['Content-Disposition'] = f'attachment; filename={img["filename"]}'
-                response.data = img['data']
-                
-                return response
-        
-        return jsonify({"error": "File not found"}), 404
-    else:
-        return jsonify({"message": "No images found for this user"}), 404
 
 @bp.route('/upload-screenshot/<username>', methods=['POST'])
 @token_required
 def upload_screenshot(username):
+    print(f"Received upload-screenshot request for username: {username}")
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     file = request.files['file']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
     response, status = handle_upload_image(username, "screenshot", file)
+    print(f"Upload response: {response}, status: {status}")
     return jsonify(response), status
 
 @bp.route('/upload-selfie/<username>', methods=['POST'])
 @token_required
 def upload_selfie(username):
+    print(f"Received upload-selfie request for username: {username}")
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     file = request.files['file']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
     response, status = handle_upload_image(username, "selfie", file)
+    print(f"Upload response: {response}, status: {status}")
     return jsonify(response), status
+
+@bp.route('/check-screenshot/<username>', methods=['GET'])
+@token_required
+def check_screenshot(username):
+    image_collection = mongo.db.images
+    user_images = image_collection.find_one({"username": username})
+    if user_images:
+        for img in user_images.get("images", []):
+            if img["type"] == "screenshot":
+                return jsonify({"saved": True}), 200
+    return jsonify({"saved": False}), 200
 
 @bp.route('/upload-card/<username>', methods=['POST'])
 @token_required
@@ -175,12 +178,15 @@ def match_faces(username):
     screenshot_face_b64 = base64.b64encode(screenshot_encoded).decode('utf-8')
     selfie_face_b64 = base64.b64encode(selfie_encoded).decode('utf-8')
 
+
     return jsonify({
         'similarity_score': similarity_score,
         'match_status': match_status,
         'screenshot_face_image': screenshot_face_b64,
         'selfie_face_image': selfie_face_b64
     })
+    
+    
 
 
 @bp.route('/card_faces/<username>', methods=['POST'])
@@ -290,10 +296,12 @@ def check_faces_in_image(username, filename):
 def logout():
     username = request.username  # Retrieve username from request object
 
-    # Delete all images related to the user from the images collection
+    # Attempt to delete all images related to the user
     deleted_count = delete_user_images(username)
 
     if deleted_count > 0:
+        # If images were deleted, return a success message
         return jsonify({'message': 'Logged out and images cleared successfully.'}), 200
     else:
-        return jsonify({'message': 'No images found for the user or failed to delete images.'}), 404
+        # If no images were found or deleted, just log the user out
+        return jsonify({'message': 'Logged out successfully, but no images found for deletion.'}), 200
