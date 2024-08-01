@@ -1,16 +1,18 @@
 from flask import Blueprint, request, jsonify, current_app
-from .controllers import handle_create_user, handle_login, handle_upload_image, handle_get_images, get_user_image_collection 
+from .controllers import handle_create_user, handle_login, handle_upload_image, handle_get_images, get_user_image_collection , send_email
 from functools import wraps
 import jwt
 from bson.objectid import ObjectId
 import base64
-from .models import mongo  ,delete_user_images , get_image,create_verification_status , create_verified_record
+from .models import mongo  ,delete_user_images , get_image,create_verification_status , create_verified_record,create_client,client_exists
 import cv2 
 import dlib
 import torch
 import numpy as np 
 from facenet_pytorch import InceptionResnetV1
 from sklearn.metrics.pairwise import cosine_similarity
+
+from .utils import generate_token
 
 bp = Blueprint('routes', __name__)
 detector = dlib.get_frontal_face_detector()
@@ -22,6 +24,22 @@ def preprocess_face(face_img):
     face_img = torch.tensor(face_img).permute(2, 0, 1).unsqueeze(0).float()
     return face_img
 
+# def token_required(f):
+#     @wraps(f)
+#     def decorated(*args, **kwargs):
+#         token = request.headers.get('Authorization')
+#         if not token:
+#             return jsonify({"error": "Token is missing!"}), 403
+#         try:
+#             token = token.replace('Bearer ', '')
+#             data = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
+#             request.username = data['sub']  # Add username to request object
+#         except jwt.ExpiredSignatureError:
+#             return jsonify({"error": "Token has expired!"}), 403
+#         except jwt.InvalidTokenError:
+#             return jsonify({"error": "Invalid token!"}), 403
+#         return f(*args, **kwargs)
+#     return decorated
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -32,18 +50,52 @@ def token_required(f):
             token = token.replace('Bearer ', '')
             data = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
             request.username = data['sub']  # Add username to request object
+            request.role = data.get('role', 'user')  # Add role to request object
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token has expired!"}), 403
         except jwt.InvalidTokenError:
             return jsonify({"error": "Invalid token!"}), 403
         return f(*args, **kwargs)
     return decorated
-
 @bp.route('/create_user', methods=['POST'])
 def create_user():
     data = request.json
     response, status = handle_create_user(data)
     return jsonify(response), status
+@bp.route('/admin_dashboard', methods=['GET'])
+@token_required
+def admin_dashboard():
+    username = request.username
+    if request.role != 'admin':  # Check if the user is an admin
+        return jsonify({'error': 'Access denied'}), 403
+
+    # Fetch admin-specific data or render the admin dashboard
+    return jsonify({
+        
+        'message': f'Welcome, {request.role}!',  # Personalized message
+        'username': username  # Include username in the response
+    }), 200
+
+@bp.route('/add_client', methods=['POST'])
+@token_required
+def add_client():
+    if request.role != 'admin':  # Check if the user is an admin
+        return jsonify({'error': 'Access denied'}), 403
+
+    data = request.json
+    company = data.get('company')
+    email = data.get('email')
+
+    if not company  or not email:
+        return jsonify({'error': 'Username and email are required'}), 400
+
+    if client_exists(company ):
+        return jsonify({'error': 'Client already exists'}), 400
+
+    result = create_client(company , email)
+    if 'error' in result:
+        return jsonify(result), 400
+    return jsonify(result), 201
 
 @bp.route('/login', methods=['POST'])
 def login():
@@ -321,3 +373,7 @@ def get_selfie(username):
 @token_required
 def get_card(username):
     return get_image(username, "card")
+
+
+
+  

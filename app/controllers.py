@@ -9,7 +9,12 @@ from facenet_pytorch import InceptionResnetV1
 from sklearn.metrics.pairwise import cosine_similarity
 import base64
 from .models import create_user, find_user_by_username, update_user_images, get_user_image_collection
-from . import bcrypt, mongo
+from . import bcrypt
+
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 
 detector = dlib.get_frontal_face_detector()
 model = InceptionResnetV1(pretrained='vggface2').eval()
@@ -19,17 +24,44 @@ def preprocess_face(face_img):
     face_img = (face_img / 255.0 - 0.5) * 2
     face_img = torch.tensor(face_img).permute(2, 0, 1).unsqueeze(0).float()
     return face_img
-
 def handle_create_user(data):
     username = data.get('username')
     password = data.get('password')
-    
+    role = data.get('role', 'user')  # Default to 'user' if not provided
+
     if not username or not password:
         return {"error": "Missing username or password"}, 400
-    
-    result = create_user(username, password)
-    return {"username": username}, 201
 
+    result = create_user(username, password, role)
+    return {"username": username}, 201
+# def handle_create_user(data):
+#     username = data.get('username')
+#     password = data.get('password')
+    
+#     if not username or not password:
+#         return {"error": "Missing username or password"}, 400
+    
+#     result = create_user(username, password)
+#     return {"username": username}, 201
+
+# def handle_login(data):
+#     username = data.get('username')
+#     password = data.get('password')
+    
+#     if not username or not password:
+#         return {"error": "Missing username or password"}, 400
+
+#     user = find_user_by_username(username)
+    
+#     if user and bcrypt.check_password_hash(user['password'], password):
+#         token = jwt.encode({
+#             'sub': username,
+#             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+#         }, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
+        
+#         return {"token": token}, 200
+#     else:
+#         return {"error": "Invalid username or password"}, 401
 def handle_login(data):
     username = data.get('username')
     password = data.get('password')
@@ -39,16 +71,16 @@ def handle_login(data):
 
     user = find_user_by_username(username)
     
-    if user and bcrypt.check_password_hash(user['password'], password):
+    if user and  bcrypt.check_password_hash(user['password'], password):
         token = jwt.encode({
             'sub': username,
+            'role': user.get('role', 'user'),  # Include user role in the token
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
         }, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
         
-        return {"token": token}, 200
+        return {"token": token, "role": user.get('role', 'user')}, 200
     else:
         return {"error": "Invalid username or password"}, 401
-
 def handle_upload_image(username, image_type, file):
     if file:
         result = update_user_images(username, image_type, file)
@@ -193,3 +225,27 @@ def match_faces():
             return jsonify({'message': 'Card or selfie image missing'}), 404
     else:
         return jsonify({'message': 'No images found for user'}), 404
+
+
+
+
+
+def send_email(recipient_email, subject, body):
+    sender_email = 'btissamchaibi1912@gmail.com'
+    sender_password = 'latofa19122001'
+    
+    message = MIMEMultipart()
+    message['From'] = sender_email
+    message['To'] = recipient_email
+    message['Subject'] = subject
+    message.attach(MIMEText(body, 'plain'))
+    
+    try:
+        with smtplib.SMTP('smtp.example.com', 587) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.send_message(message)
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False
