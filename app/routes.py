@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify, current_app
-from .controllers import handle_create_user, handle_login, handle_upload_image, handle_get_images, get_user_image_collection , send_email
+from flask import Blueprint, request, jsonify, current_app , redirect
+from .controllers import handle_create_user, handle_login, handle_upload_image,notify_all_clients, handle_get_images, get_user_image_collection , find_user_by_username
 from functools import wraps
 import jwt
 from bson.objectid import ObjectId
@@ -11,8 +11,9 @@ import torch
 import numpy as np 
 from facenet_pytorch import InceptionResnetV1
 from sklearn.metrics.pairwise import cosine_similarity
+import datetime
+from .utils import generate_login_link
 
-from .utils import generate_token
 
 bp = Blueprint('routes', __name__)
 detector = dlib.get_frontal_face_detector()
@@ -111,6 +112,45 @@ def login():
     data = request.json
     response, status = handle_login(data)
     return jsonify(response), status
+@bp.route('/auto-login', methods=['GET'])
+def auto_login():
+    token = request.args.get('token')
+    
+    if not token:
+        return {"error": "Missing token"}, 400
+    
+    try:
+        payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
+        username = payload['sub']
+        
+        user = find_user_by_username(username)
+        if not user:
+            return {"error": "Invalid token"}, 401
+        
+        # Generate new token for session
+        session_token = jwt.encode({
+            'sub': username,
+            'role': user.get('role', 'user'),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+        }, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
+        
+        # Redirect to dashboard with token
+        return redirect(f"{current_app.config['FRONTEND_URL']}/dashboard?token={session_token}")
+
+    except jwt.ExpiredSignatureError:
+        return {"error": "Expired token"}, 401
+    except jwt.InvalidTokenError:
+        return {"error": "Invalid token"}, 401
+    
+@bp.route('/generate-link', methods=['POST'])
+def generate_link():
+    data = request.json
+    email = data.get('email')
+    if not email:
+        return {"error": "Missing email"}, 400
+
+    login_link = generate_login_link(email)
+    return {"login_link": login_link}, 200
 
 @bp.route('/dashboard', methods=['GET'])
 @token_required
@@ -385,4 +425,10 @@ def get_card(username):
 
 
 
-  
+@bp.route('/send-client-emails', methods=['POST'])
+def send_client_emails():
+    try:
+        notify_all_clients()
+        return jsonify({"success": "Emails sent to all clients"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

@@ -8,7 +8,8 @@ import torch
 from facenet_pytorch import InceptionResnetV1
 from sklearn.metrics.pairwise import cosine_similarity
 import base64
-from .models import create_user, find_user_by_username, update_user_images, get_user_image_collection
+from .models import create_user, find_user_by_username, update_user_images, get_user_image_collection ,get_all_client_emails
+from .utils import generate_login_link, send_signup_email
 from . import bcrypt
 
 import smtplib
@@ -227,25 +228,16 @@ def match_faces():
         return jsonify({'message': 'No images found for user'}), 404
 
 
-
-
-
-def send_email(recipient_email, subject, body):
-    sender_email = 'btissamchaibi1912@gmail.com'
-    sender_password = 'latofa19122001'
+def notify_all_clients():
+    client_emails = get_all_client_emails()
+    if not client_emails:
+        print("No clients to notify")
+        return
     
-    message = MIMEMultipart()
-    message['From'] = sender_email
-    message['To'] = recipient_email
-    message['Subject'] = subject
-    message.attach(MIMEText(body, 'plain'))
-    
-    try:
-        with smtplib.SMTP('smtp.example.com', 587) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.send_message(message)
-        return True
-    except Exception as e:
-        print(f"Error sending email: {e}")
-        return False
+    for email in client_emails:
+        try:
+            login_link = generate_login_link(email)
+            send_signup_email(email, login_link)
+            print(f"Sent email to {email}")
+        except Exception as e:
+            print(f"Failed to send email to {email}: {str(e)}")

@@ -16,6 +16,7 @@ def create_app():
     
     app.config['MONGO_URI'] = os.getenv('MONGO_URI')
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
+    app.config['FRONTEND_URL'] = os.getenv('FRONTEND_URL')
     
     mongo.init_app(app)
     bcrypt.init_app(app)
