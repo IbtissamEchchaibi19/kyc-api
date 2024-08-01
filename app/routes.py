@@ -4,7 +4,7 @@ from functools import wraps
 import jwt
 from bson.objectid import ObjectId
 import base64
-from .models import mongo  ,delete_user_images , get_image,create_verification_status , create_verified_record,create_client,client_exists
+from .models import mongo  ,delete_user_images , get_image,create_verification_status , create_verified_record,create_client,client_exists ,get_all_clients
 import cv2 
 import dlib
 import torch
@@ -97,6 +97,15 @@ def add_client():
         return jsonify(result), 400
     return jsonify(result), 201
 
+
+@bp.route('/clients', methods=['GET'])
+@token_required
+def get_clients():
+    if request.role != 'admin':  # Check if the user is an admin
+        return jsonify({'error': 'Access denied'}), 403
+
+    clients = get_all_clients()
+    return jsonify({"clients": clients}), 200
 @bp.route('/login', methods=['POST'])
 def login():
     data = request.json
