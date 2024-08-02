@@ -1,4 +1,4 @@
-from flask import request ,current_app ,jsonify
+from flask import request ,current_app ,jsonify ,g
 from app.models.clients import  *
 from  app.models.users import *
 from  app.models.tokens import *
@@ -7,31 +7,30 @@ import jwt
 
 
 def add_client():
-    if request.role != 'admin':  
+    if g.role != 'admin':
         return jsonify({'error': 'Access denied'}), 403
 
     data = request.json
     company = data.get('company')
     email = data.get('email')
 
-    if not company  or not email:
-        return jsonify({'error': 'Username and email are required'}), 400
+    if not company or not email:
+        return jsonify({'error': 'Company and email are required'}), 400
 
-    if client_exists(company ):
+    if client_exists(email):
         return jsonify({'error': 'Client already exists'}), 400
 
-    result = create_client(company , email)
+    result = create_client(company, email)
     if 'error' in result:
         return jsonify(result), 400
     return jsonify(result), 201
 
 def get_clients():
-    if request.role != 'admin':  # Check if the user is an admin
+    if g.role != 'admin':  # Check if the user is an admin
         return jsonify({'error': 'Access denied'}), 403
 
     clients = get_all_clients()
     return jsonify({"clients": clients}), 200
-
 def auto_login():
     data = request.json
     email = data.get('email')
