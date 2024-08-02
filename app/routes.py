@@ -4,15 +4,14 @@ from functools import wraps
 import jwt
 from bson.objectid import ObjectId
 import base64
-from .models import mongo  ,delete_user_images , create_user , get_image,create_verification_status , create_verified_record,create_client,client_exists ,get_all_clients
+from .models import mongo  ,delete_user_images , create_user , get_image,create_verification_status , mark_token_as_used,create_verified_record,create_client,client_exists ,get_all_clients ,is_token_used
 import cv2 
 import dlib
 import torch
 import numpy as np 
 from facenet_pytorch import InceptionResnetV1
 from sklearn.metrics.pairwise import cosine_similarity
-import datetime
-from .utils import generate_login_link
+from .utils import generate_login_link 
 
 
 bp = Blueprint('routes', __name__)
@@ -116,22 +115,34 @@ def login():
 def auto_login():
     data = request.json
     email = data.get('email')
+    token = data.get('token')
     password = 'temporary_password'  # or some default value
 
+    if not token or not email:
+        return jsonify({"status": "error", "message": "Invalid request"}), 400
+
     try:
-        create_user(email, password,role='user')
+        # Decode the token
+        payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
+
+        # Check if the token has been used
+        if is_token_used(token):
+            return jsonify({"status": "error", "message": "Token has already been used"}), 400
+
+        # Mark the token as used
+        mark_token_as_used(token)
+
+        # Create user or perform login action
+        create_user(email, password, role='user')
+
         return jsonify({"status": "success"})
+    except jwt.ExpiredSignatureError:
+        return jsonify({"status": "error", "message": "Token has expired"}), 400
+    except jwt.InvalidTokenError:
+        return jsonify({"status": "error", "message": "Invalid token"}), 400
     except Exception as e:
         print(f"Error during auto-login: {e}")
-        return jsonify({"status": "error", "message": "Failed to create user"}), 500
-def generate_link():
-    data = request.json
-    email = data.get('email')
-    if not email:
-        return {"error": "Missing email"}, 400
-
-    login_link = generate_login_link(email)
-    return {"login_link": login_link}, 200
+        return jsonify({"status": "error", "message": "Failed to process login"}), 500
 
 @bp.route('/dashboard', methods=['GET'])
 @token_required
