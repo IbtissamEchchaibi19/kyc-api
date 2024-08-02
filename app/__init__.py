@@ -10,7 +10,7 @@ bcrypt = Bcrypt()
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
+
     # Load environment variables from .env file
     load_dotenv()
     
@@ -18,10 +18,13 @@ def create_app():
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
     app.config['FRONTEND_URL'] = os.getenv('FRONTEND_URL')
     
+    # Initialize CORS with specific options
+    CORS(app, resources={r"/*": {"origins": "*"}})
+
+
     mongo.init_app(app)
     bcrypt.init_app(app)
 
-    
     from .routes import bp as routes_bp
     app.register_blueprint(routes_bp)
     

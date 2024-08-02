@@ -4,7 +4,7 @@ from functools import wraps
 import jwt
 from bson.objectid import ObjectId
 import base64
-from .models import mongo  ,delete_user_images , get_image,create_verification_status , create_verified_record,create_client,client_exists ,get_all_clients
+from .models import mongo  ,delete_user_images , create_user , get_image,create_verification_status , create_verified_record,create_client,client_exists ,get_all_clients
 import cv2 
 import dlib
 import torch
@@ -59,7 +59,7 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 @bp.route('/create_user', methods=['POST'])
-def create_user():
+def create_users():
     data = request.json
     response, status = handle_create_user(data)
     return jsonify(response), status
@@ -112,37 +112,18 @@ def login():
     data = request.json
     response, status = handle_login(data)
     return jsonify(response), status
-@bp.route('/auto-login', methods=['GET'])
+@bp.route('/auto-login', methods=['POST'])
 def auto_login():
-    token = request.args.get('token')
-    
-    if not token:
-        return {"error": "Missing token"}, 400
-    
-    try:
-        payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
-        username = payload['sub']
-        
-        user = find_user_by_username(username)
-        if not user:
-            return {"error": "Invalid token"}, 401
-        
-        # Generate new token for session
-        session_token = jwt.encode({
-            'sub': username,
-            'role': user.get('role', 'user'),
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-        }, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
-        
-        # Redirect to dashboard with token
-        return redirect(f"{current_app.config['FRONTEND_URL']}/dashboard?token={session_token}")
+    data = request.json
+    email = data.get('email')
+    password = 'temporary_password'  # or some default value
 
-    except jwt.ExpiredSignatureError:
-        return {"error": "Expired token"}, 401
-    except jwt.InvalidTokenError:
-        return {"error": "Invalid token"}, 401
-    
-@bp.route('/generate-link', methods=['POST'])
+    try:
+        create_user(email, password,role='user')
+        return jsonify({"status": "success"})
+    except Exception as e:
+        print(f"Error during auto-login: {e}")
+        return jsonify({"status": "error", "message": "Failed to create user"}), 500
 def generate_link():
     data = request.json
     email = data.get('email')
