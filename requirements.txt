@@ -7,6 +7,7 @@ Flask-Bcrypt==1.0.1
 Flask-Cors==4.0.1
 Flask-JWT-Extended==4.6.0
 Flask-PyMongo==2.3.0
+scikit-learn==1.5.1
 gunicorn==22.0.0
 opencv-python-headless==4.10.0.84
 PyJWT==2.8.0
