@@ -16,13 +16,24 @@ def create_app():
     mongo_uri = os.getenv('MONGO_URI')
     jwt_secret_key = os.getenv('JWT_SECRET_KEY')
     frontend_url = os.getenv('FRONTEND_URL')
+    aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
+    aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    aws_region = os.getenv('AWS_REGION')
+    s3_bucket_name = os.getenv('S3_BUCKET_NAME')
     
-    if not all([mongo_uri, jwt_secret_key, frontend_url]):
+    if not all([mongo_uri, jwt_secret_key, frontend_url, aws_access_key_id, aws_secret_access_key, aws_region, s3_bucket_name]):
         raise ValueError("One or more environment variables are missing")
-
+    
     app.config['MONGO_URI'] = mongo_uri
     app.config['JWT_SECRET_KEY'] = jwt_secret_key
     app.config['FRONTEND_URL'] = frontend_url
+    app.config['AWS_ACCESS_KEY_ID'] = aws_access_key_id
+    app.config['AWS_SECRET_ACCESS_KEY'] = aws_secret_access_key
+    app.config['AWS_REGION'] = aws_region
+    app.config['S3_BUCKET_NAME'] = s3_bucket_name
+    
+    # Debug prints
+    print(f"S3_BUCKET_NAME: {app.config.get('S3_BUCKET_NAME')}")
 
     CORS(app, resources={r"/*": {"origins": "*"}})
 

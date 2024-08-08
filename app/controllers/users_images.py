@@ -1,5 +1,6 @@
 from flask import request ,current_app ,jsonify ,current_app
-from  app.models.user_images import *
+# from  app.models.user_images import *
+from app.models.update_user_images import *
 
 def get_mongo():
     return current_app.extensions['pymongo']
@@ -45,12 +46,12 @@ def upload_selfie(username):
 def upload_card(username):
     return upload_image(username, "card")
 
-def handle_get_images(username):
-    user_images = get_user_image_collection(username)
-    if user_images and "images" in user_images:
-        return {"images": user_images["images"]}, 200
-    else:
-        return {"error": "No images found"}, 404
+# def handle_get_images(username):
+#     user_images = get_user_image_collection(username)
+#     if user_images and "images" in user_images:
+#         return {"images": user_images["images"]}, 200
+#     else:
+#         return {"error": "No images found"}, 404
     
 def check_screenshot(username):
     mongo= get_mongo()

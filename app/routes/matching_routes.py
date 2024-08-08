@@ -15,7 +15,7 @@ def match_faces_route(username):
 def card_faces_route(username):
     return card_faces(username)
 
-@matching_bp.route('/check_faces_in_image/<username>/<filename>', methods=['GET'])
+@matching_bp.route('/check_faces_in_image/<username>/<image_type>', methods=['GET'])
 @token_required
-def check_faces_in_image_route(username, filename):
-    return check_faces_in_image(username, filename)
+def check_faces_in_image_route(username, image_type):
+    return check_faces_in_image(username, image_type)

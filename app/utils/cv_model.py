@@ -1,12 +1,15 @@
-from flask import Blueprint,  jsonify
-from  app.models.user_images import get_user_image_collection
+from flask import Blueprint, jsonify, request
+import requests
 import base64
-import cv2 
+import cv2
 import dlib
 import torch
-import numpy as np 
+import numpy as np
 from facenet_pytorch import InceptionResnetV1
 from sklearn.metrics.pairwise import cosine_similarity
+from io import BytesIO
+from app.models.update_user_images import get_user_image_collection
+
 bp = Blueprint('routes', __name__)
 detector = dlib.get_frontal_face_detector()
 model = InceptionResnetV1(pretrained='vggface2').eval()
@@ -16,6 +19,16 @@ def preprocess_face(face_img):
     face_img = (face_img / 255.0 - 0.5) * 2
     face_img = torch.tensor(face_img).permute(2, 0, 1).unsqueeze(0).float()
     return face_img
+def get_image_from_s3(url):
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return BytesIO(response.content)
+        else:
+            print(f"Failed to fetch image: Status code {response.status_code}, URL: {url}")
+    except Exception as e:
+        print(f"Error fetching image from S3: {e}")
+    return None
 
 def get_images(username, type1, type2):
     user_images = get_user_image_collection(username)
@@ -29,10 +42,14 @@ def get_images(username, type1, type2):
     if not image1 or not image2:
         return None, None, jsonify({'error': 'Required images not found in the database.'}), 404
 
-    data1 = np.frombuffer(image1['data'], np.uint8)
-    data2 = np.frombuffer(image2['data'], np.uint8)
-    img1 = cv2.imdecode(data1, cv2.IMREAD_COLOR)
-    img2 = cv2.imdecode(data2, cv2.IMREAD_COLOR)
+    img1_file = get_image_from_s3(image1['url'])
+    img2_file = get_image_from_s3(image2['url'])
+
+    if img1_file is None or img2_file is None:
+        return None, None, jsonify({'error': 'Failed to retrieve images from S3.'}), 404
+
+    img1 = cv2.imdecode(np.frombuffer(img1_file.read(), np.uint8), cv2.IMREAD_COLOR)
+    img2 = cv2.imdecode(np.frombuffer(img2_file.read(), np.uint8), cv2.IMREAD_COLOR)
 
     return img1, img2, None, None
 
@@ -84,19 +101,26 @@ def match_images(username, type1, type2):
 
     return jsonify(result)
 
-def check_faces_in_image(username, filename):
-    user_images =get_user_image_collection(username)
+def check_faces_in_image(username, image_type):
+    user_images = get_user_image_collection(username)
 
     if not user_images or 'images' not in user_images:
         return jsonify({'error': 'User images not found in the database.'}), 404
 
-    # Find the specific image by filename
-    specific_image = next((img for img in user_images['images'] if img['filename'] == filename), None)
+    # Find the specific image by type
+    specific_image = next((img for img in user_images['images'] if img['type'] == image_type), None)
     
     if not specific_image:
         return jsonify({'error': 'Image not found in the database.'}), 404
 
-    img_data = np.frombuffer(specific_image['data'], np.uint8)
+    # Load image from URL
+    url = specific_image['url']
+    img_file = get_image_from_s3(url)
+    
+    if img_file is None:
+        return jsonify({'error': 'Failed to fetch image from URL.'}), 404
+
+    img_data = np.frombuffer(img_file.read(), np.uint8)
     img_cv = cv2.imdecode(img_data, cv2.IMREAD_COLOR)
     
     if img_cv is None:
