@@ -103,33 +103,29 @@ def match_images(username, type1, type2):
 
 def check_faces_in_image(username, image_type):
     user_images = get_user_image_collection(username)
-
     if not user_images or 'images' not in user_images:
         return jsonify({'error': 'User images not found in the database.'}), 404
 
-    # Find the specific image by type
-    specific_image = next((img for img in user_images['images'] if img['type'] == image_type), None)
-    
-    if not specific_image:
+    images = user_images['images']
+    image1 = next((img for img in images if img['type'] == image_type), None)
+
+    if not image1:
         return jsonify({'error': 'Image not found in the database.'}), 404
 
-    # Load image from URL
-    url = specific_image['url']
-    img_file = get_image_from_s3(url)
-    
+    img_file = get_image_from_s3(image1['url'])
+
     if img_file is None:
         return jsonify({'error': 'Failed to fetch image from URL.'}), 404
 
     img_data = np.frombuffer(img_file.read(), np.uint8)
     img_cv = cv2.imdecode(img_data, cv2.IMREAD_COLOR)
-    
+
     if img_cv is None:
         return jsonify({'message': 'Invalid image'}), 400
 
     img_gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
     faces = detector(img_gray)
-    
-    # Debugging output
+
     print(f"Number of faces detected: {len(faces)}")
 
     if len(faces) == 0:
@@ -138,7 +134,6 @@ def check_faces_in_image(username, image_type):
         for i, face in enumerate(faces):
             print(f"Face {i}: Left={face.left()}, Top={face.top()}, Width={face.width()}, Height={face.height()}")
 
-        # Process the first detected face
         x, y, w, h = (faces[0].left(), faces[0].top(), faces[0].width(), faces[0].height())
         face_img = img_cv[y:y+h, x:x+w]
         face_tensor = preprocess_face(face_img)

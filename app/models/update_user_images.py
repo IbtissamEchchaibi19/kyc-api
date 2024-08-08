@@ -92,9 +92,9 @@ def get_image(username, image_type):
 
 def get_user_image_collection(username):
     mongo = get_mongo()
+    print(f"Connecting to MongoDB: {mongo}")  # Debug connection info
     image_collection = mongo.db.images
+    print(f"Querying for username: {username}")
     user_images = image_collection.find_one({"username": username})
-    
-    if user_images and "images" in user_images:
-        return user_images
-    return None
+    print(f"Retrieved user images: {user_images}")
+    return user_images

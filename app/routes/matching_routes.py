@@ -18,4 +18,6 @@ def card_faces_route(username):
 @matching_bp.route('/check_faces_in_image/<username>/<image_type>', methods=['GET'])
 @token_required
 def check_faces_in_image_route(username, image_type):
+    print(f"Username received in route: {username}")
+    print(f"Image type received in route: {image_type}")
     return check_faces_in_image(username, image_type)
