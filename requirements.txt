@@ -1,6 +1,7 @@
 -f https://download.pytorch.org/whl/torch_stable.html
 bcrypt==4.2.0
 boto3==1.34.156
+dlib==19.24.4
 facenet-pytorch==2.6.0
 Flask==3.0.3
 Flask-Bcrypt==1.0.1
